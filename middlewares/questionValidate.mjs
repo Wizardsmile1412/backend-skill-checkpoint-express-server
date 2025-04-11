@@ -1,5 +1,6 @@
 const questionValidate = (req, res, next) =>{
     const { title, description, category} = req.body;
+    
 
     const errors = [];
 
