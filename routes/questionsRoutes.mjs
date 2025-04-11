@@ -1,6 +1,7 @@
 import express from "express";
 import connectionPool from "../utils/db.mjs";
 import questionValidate from "../middlewares/questionValidate.mjs";
+import searchQueryValidate from "../middlewares/searchQueryValidate.mjs";
 
 const questionRouter = express.Router();
 
@@ -9,6 +10,45 @@ questionRouter.get("/", async (req, res) => {
     const response = await connectionPool.query(`select * from questions`);
 
     return res.status(200).json({ data: response.rows });
+  } catch (error) {
+    console.error("Error found: ", error);
+    return res.status(500).json({ "message": "Unable to fetch questions." });
+  }
+});
+
+questionRouter.get("/search", [searchQueryValidate], async (req, res) => {
+  const {title, category} = req.query;
+
+  try {
+    let conditions = [];
+    let values = [];
+    let count = 1;
+
+    if (title) {
+      conditions.push(`title ILIKE $${count}`);
+      values.push(`%${title}%`);
+      count++;
+    }
+
+    if (category) {
+      conditions.push(`category ILIKE $${count}`);
+      values.push(`%${category}%`);
+      count++;
+    }
+
+    const whereClause = conditions.length > 0? `WHERE ${conditions.join(" AND ")}` : "";
+
+    const query = `SELECT * FROM questions ${whereClause} ORDER BY id ASC`
+
+    const response = await connectionPool.query(query, values);
+
+    if (response.rowCount === 0) {
+      return res.status(404).json({ "message": "Question not found." });
+    }
+
+    return res.status(200).json({
+      data: response.rows,
+    });
   } catch (error) {
     console.error("Error found: ", error);
     return res.status(500).json({ "message": "Unable to fetch questions." });
