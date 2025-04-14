@@ -2,6 +2,7 @@ import express from "express";
 import connectionPool from "../utils/db.mjs";
 import questionValidate from "../middlewares/questionValidate.mjs";
 import searchQueryValidate from "../middlewares/searchQueryValidate.mjs";
+import voteValidate from "../middlewares/voteValidate.mjs";
 
 
 const questionRouter = express.Router();
@@ -159,6 +160,43 @@ questionRouter.delete("/:questionId", async (req, res) => {
   } catch (error) {
     console.error("Error found: ", error);
     return res.status(500).json({"message": "Unable to delete question."});
+  }
+});
+
+questionRouter.post("/:questionId/vote", [voteValidate], async (req, res) => {
+  const questionIdFromClient = req.params.questionId;
+  const { vote } = req.body;
+
+  try {
+    // Check if question exists
+    const checkQuestion = await connectionPool.query(`
+      select * from questions
+      where id = $1`,
+    [questionIdFromClient])
+
+    if(checkQuestion.rowCount === 0){
+      return res.status(404).json({ message: "Question not found." });
+    }
+
+    // Create questions vote
+    const response = await connectionPool.query(
+      `insert into question_votes (question_id, vote)
+        values ($1, $2)`,
+      [questionIdFromClient, vote]
+    );
+
+    if (response.rowCount === 1) {
+      return res.status(201).json({
+         "message": "Vote on the question has been recorded successfully."
+      });
+    } else {
+      return res.status(400).json({
+        "message": "Vote on the question cannot be recorded."
+      });
+    }
+  } catch (error) {
+    console.error("Error found: ", error);
+    return res.status(500).json({ "message": "Unable to create question." });
   }
 });
 
